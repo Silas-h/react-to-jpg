@@ -1,61 +1,20 @@
 import React, { useState, useRef } from 'react';
 import { toPng } from 'html-to-image';
 import * as LucideIcons from 'lucide-react';
-import { Code, Eye } from 'lucide-react';
+import { Code, Eye, FileCode, ArrowRight } from 'lucide-react';
 import { createElement as e } from 'react';
 
-/**
- * Creates a React component from code string.
- * Supports both createElement and simple function declarations.
- */
 const createComponent = (code) => {
-  if (!code.trim()) return null;
-  
   try {
-    // Create evaluation context with all necessary globals
-    const fn = Function(
+    return Function(
       'React',
       'e',
       ...Object.keys(LucideIcons),
-      `
-      "use strict";
-      
-      // Execute the component code
-      ${code}
-      
-      // Look for defined components in order of preference
-      const components = [
-        typeof ROEDiagram !== 'undefined' ? ROEDiagram : null,
-        typeof Chart !== 'undefined' ? Chart : null,
-        typeof Diagram !== 'undefined' ? Diagram : null,
-        typeof Infographic !== 'undefined' ? Infographic : null,
-        // ... add more names as needed
-      ];
-      
-      // Return first defined component
-      const component = components.find(c => c !== null);
-      if (!component) {
-        // If no predefined name found, look for any function
-        const allFuncs = Object.values(this).filter(
-          val => typeof val === 'function' && val.length <= 1
-        );
-        if (allFuncs.length > 0) return allFuncs[allFuncs.length - 1];
-        
-        throw new Error('No valid React component found in the code');
-      }
-      
-      return component;
-      `
+      `${code}; return ROEInfographic;`
     )(React, React.createElement, ...Object.values(LucideIcons));
-
-    if (typeof fn !== 'function') {
-      throw new Error('Component must be a function');
-    }
-
-    return fn;
   } catch (err) {
     console.error('Component creation error:', err);
-    throw new Error(`Failed to create component: ${err.message}`);
+    throw err;
   }
 };
 
@@ -67,12 +26,6 @@ const App = () => {
 
   const handleCodeChange = (newCode) => {
     setCode(newCode);
-    if (!newCode.trim()) {
-      setPreviewComponent(null);
-      setError(null);
-      return;
-    }
-    
     try {
       const component = createComponent(newCode);
       setPreviewComponent(() => component);
@@ -87,35 +40,11 @@ const App = () => {
     if (!previewRef.current) return;
     
     try {
-      // Create a clean export container
-      const exportContainer = document.createElement('div');
-      exportContainer.style.position = 'fixed';
-      exportContainer.style.left = '-9999px';
-      exportContainer.style.top = '0';
-      exportContainer.style.width = 'auto';
-      exportContainer.style.height = 'auto';
-      exportContainer.style.backgroundColor = 'white';
-      document.body.appendChild(exportContainer);
-
-      // Clone the content
-      const clone = previewRef.current.cloneNode(true);
-      exportContainer.appendChild(clone);
-
-      // Generate image
-      const dataUrl = await toPng(clone, {
+      const dataUrl = await toPng(previewRef.current, {
         quality: 1.0,
         backgroundColor: 'white',
-        style: {
-          transform: 'none',
-          margin: '0',
-          padding: '0'
-        }
       });
-
-      // Cleanup
-      document.body.removeChild(exportContainer);
-
-      // Download
+      
       const link = document.createElement('a');
       link.download = 'react-component.jpg';
       link.href = dataUrl;
@@ -143,22 +72,21 @@ const App = () => {
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">1</div>
                 <div>
-                  <p className="text-blue-900">Paste your React component code below. Available globals:</p>
+                  <p className="text-blue-900">Paste your React component code in the editor below. Component must:</p>
                   <ul className="mt-2 list-disc list-inside text-blue-800 text-sm space-y-1 ml-4">
-                    <li><code className="bg-blue-100 px-1 rounded">e()</code> for createElement (instead of JSX)</li>
-                    <li>All Lucide icons by name (FileText, Calculator, etc.)</li>
-                    <li>Full Tailwind CSS classes for styling</li>
-                    <li>React utilities (useState, useEffect, etc.)</li>
+                    <li>Have "Infographic" in its name (e.g., ROEInfographic)</li>
+                    <li>Use <code className="bg-blue-100 px-1 rounded">e()</code> instead of JSX (see example in editor)</li>
+                    <li>Be exported as default</li>
                   </ul>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">2</div>
-                <p className="text-blue-900">Preview your component and verify it looks correct</p>
+                <p className="text-blue-900">Check the live preview to ensure your component renders correctly</p>
               </div>
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">3</div>
-                <p className="text-blue-900">Click "Export as JPG" to download the rendered image</p>
+                <p className="text-blue-900">Click "Export as JPG" to download your component as an image</p>
               </div>
             </div>
           </div>
@@ -172,7 +100,7 @@ const App = () => {
               <div>
                 <h2 className="font-medium text-gray-900">Component Code</h2>
                 <p className="text-sm text-gray-500">
-                  Use e() instead of JSX syntax
+                  Available globally: All Lucide icons and React.createElement (as 'e')
                 </p>
               </div>
             </div>
@@ -184,7 +112,14 @@ const App = () => {
                 value={code}
                 onChange={(e) => handleCodeChange(e.target.value)}
                 spellCheck="false"
-                placeholder="Paste your component code here..."
+                placeholder={`const MyInfographic = () => {
+  return e('div', { className: "p-8 text-center" },
+    e('h1', { className: "text-2xl font-bold" }, "My Title"),
+    e('p', { className: "mt-4" }, "My content here...")
+  );
+};
+
+export default MyInfographic;`}
               />
               {error && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -196,7 +131,7 @@ const App = () => {
         </div>
 
         {/* Preview */}
-        <div>
+        <div className="mb-12">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -216,8 +151,8 @@ const App = () => {
               </button>
             </div>
             <div 
+              className="p-8 bg-white"
               ref={previewRef}
-              className="p-8 bg-white min-h-[200px] flex items-center justify-center"
             >
               {PreviewComponent && <PreviewComponent />}
             </div>
@@ -225,7 +160,7 @@ const App = () => {
         </div>
 
         {/* Footer */}
-        <footer className="text-center text-sm text-gray-500 mt-12 pt-8 border-t border-gray-200">
+        <footer className="text-center text-sm text-gray-500 pt-8 border-t border-gray-200">
           <p>© 2024 FinancialReports. All rights reserved.</p>
           <p className="mt-2">Convert React components to beautiful JPG images.</p>
         </footer>
