@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { toPng } from 'html-to-image';
 import * as LucideIcons from 'lucide-react';
-import { Code, Eye, FileCode, ArrowRight } from 'lucide-react';
+import { Code, Eye } from 'lucide-react';
 import { createElement as e } from 'react';
 
 const createComponent = (code) => {
@@ -10,7 +10,12 @@ const createComponent = (code) => {
       'React',
       'e',
       ...Object.keys(LucideIcons),
-      `${code}; return ROEInfographic;`
+      `${code}
+       const components = Object.keys(this).filter(key => 
+         typeof this[key] === 'function' && 
+         key !== 'createComponent'
+       );
+       return this[components[components.length - 1]];`
     )(React, React.createElement, ...Object.values(LucideIcons));
   } catch (err) {
     console.error('Component creation error:', err);
@@ -72,11 +77,12 @@ const App = () => {
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">1</div>
                 <div>
-                  <p className="text-blue-900">Paste your React component code in the editor below. Component must:</p>
+                  <p className="text-blue-900">Paste your React component code below. Available globals:</p>
                   <ul className="mt-2 list-disc list-inside text-blue-800 text-sm space-y-1 ml-4">
-                    <li>Have "Infographic" in its name (e.g., ROEInfographic)</li>
-                    <li>Use <code className="bg-blue-100 px-1 rounded">e()</code> instead of JSX (see example in editor)</li>
-                    <li>Be exported as default</li>
+                    <li><code className="bg-blue-100 px-1 rounded">e()</code> for createElement (instead of JSX)</li>
+                    <li>All Lucide icons: FileText, Calculator, DollarSign, etc.</li>
+                    <li>Tailwind CSS for styling</li>
+                    <li>No imports needed - everything is available globally</li>
                   </ul>
                 </div>
               </div>
@@ -100,7 +106,7 @@ const App = () => {
               <div>
                 <h2 className="font-medium text-gray-900">Component Code</h2>
                 <p className="text-sm text-gray-500">
-                  Available globally: All Lucide icons and React.createElement (as 'e')
+                  Use e() instead of JSX syntax
                 </p>
               </div>
             </div>
@@ -112,14 +118,7 @@ const App = () => {
                 value={code}
                 onChange={(e) => handleCodeChange(e.target.value)}
                 spellCheck="false"
-                placeholder={`const MyInfographic = () => {
-  return e('div', { className: "p-8 text-center" },
-    e('h1', { className: "text-2xl font-bold" }, "My Title"),
-    e('p', { className: "mt-4" }, "My content here...")
-  );
-};
-
-export default MyInfographic;`}
+                placeholder="Paste your component code here..."
               />
               {error && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -131,7 +130,7 @@ export default MyInfographic;`}
         </div>
 
         {/* Preview */}
-        <div className="mb-12">
+        <div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -160,7 +159,7 @@ export default MyInfographic;`}
         </div>
 
         {/* Footer */}
-        <footer className="text-center text-sm text-gray-500 pt-8 border-t border-gray-200">
+        <footer className="text-center text-sm text-gray-500 mt-12 pt-8 border-t border-gray-200">
           <p>© 2024 FinancialReports. All rights reserved.</p>
           <p className="mt-2">Convert React components to beautiful JPG images.</p>
         </footer>
