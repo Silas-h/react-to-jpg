@@ -4,22 +4,58 @@ import * as LucideIcons from 'lucide-react';
 import { Code, Eye } from 'lucide-react';
 import { createElement as e } from 'react';
 
+/**
+ * Creates a React component from code string.
+ * Supports both createElement and simple function declarations.
+ */
 const createComponent = (code) => {
+  if (!code.trim()) return null;
+  
   try {
-    return Function(
+    // Create evaluation context with all necessary globals
+    const fn = Function(
       'React',
       'e',
       ...Object.keys(LucideIcons),
-      `${code}
-       const components = Object.keys(this).filter(key => 
-         typeof this[key] === 'function' && 
-         key !== 'createComponent'
-       );
-       return this[components[components.length - 1]];`
+      `
+      "use strict";
+      
+      // Execute the component code
+      ${code}
+      
+      // Look for defined components in order of preference
+      const components = [
+        typeof ROEDiagram !== 'undefined' ? ROEDiagram : null,
+        typeof Chart !== 'undefined' ? Chart : null,
+        typeof Diagram !== 'undefined' ? Diagram : null,
+        typeof Infographic !== 'undefined' ? Infographic : null,
+        // ... add more names as needed
+      ];
+      
+      // Return first defined component
+      const component = components.find(c => c !== null);
+      if (!component) {
+        // If no predefined name found, look for any function
+        const allFuncs = Object.values(this).filter(
+          val => typeof val === 'function' && val.length <= 1
+        );
+        if (allFuncs.length > 0) return allFuncs[allFuncs.length - 1];
+        
+        throw new Error('No valid React component found in the code');
+      }
+      
+      return component;
+      `
     )(React, React.createElement, ...Object.values(LucideIcons));
+
+    if (typeof fn !== 'function') {
+      throw new Error('Component must be a function');
+    }
+
+    return fn;
   } catch (err) {
     console.error('Component creation error:', err);
-    throw err;
+    throw new Error(`Failed to create component: ${err.message}`);
   }
 };
 
@@ -31,6 +67,12 @@ const App = () => {
 
   const handleCodeChange = (newCode) => {
     setCode(newCode);
+    if (!newCode.trim()) {
+      setPreviewComponent(null);
+      setError(null);
+      return;
+    }
+    
     try {
       const component = createComponent(newCode);
       setPreviewComponent(() => component);
@@ -45,11 +87,35 @@ const App = () => {
     if (!previewRef.current) return;
     
     try {
-      const dataUrl = await toPng(previewRef.current, {
+      // Create a clean export container
+      const exportContainer = document.createElement('div');
+      exportContainer.style.position = 'fixed';
+      exportContainer.style.left = '-9999px';
+      exportContainer.style.top = '0';
+      exportContainer.style.width = 'auto';
+      exportContainer.style.height = 'auto';
+      exportContainer.style.backgroundColor = 'white';
+      document.body.appendChild(exportContainer);
+
+      // Clone the content
+      const clone = previewRef.current.cloneNode(true);
+      exportContainer.appendChild(clone);
+
+      // Generate image
+      const dataUrl = await toPng(clone, {
         quality: 1.0,
         backgroundColor: 'white',
+        style: {
+          transform: 'none',
+          margin: '0',
+          padding: '0'
+        }
       });
-      
+
+      // Cleanup
+      document.body.removeChild(exportContainer);
+
+      // Download
       const link = document.createElement('a');
       link.download = 'react-component.jpg';
       link.href = dataUrl;
@@ -80,19 +146,19 @@ const App = () => {
                   <p className="text-blue-900">Paste your React component code below. Available globals:</p>
                   <ul className="mt-2 list-disc list-inside text-blue-800 text-sm space-y-1 ml-4">
                     <li><code className="bg-blue-100 px-1 rounded">e()</code> for createElement (instead of JSX)</li>
-                    <li>All Lucide icons: FileText, Calculator, DollarSign, etc.</li>
-                    <li>Tailwind CSS for styling</li>
-                    <li>No imports needed - everything is available globally</li>
+                    <li>All Lucide icons by name (FileText, Calculator, etc.)</li>
+                    <li>Full Tailwind CSS classes for styling</li>
+                    <li>React utilities (useState, useEffect, etc.)</li>
                   </ul>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">2</div>
-                <p className="text-blue-900">Check the live preview to ensure your component renders correctly</p>
+                <p className="text-blue-900">Preview your component and verify it looks correct</p>
               </div>
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-600">3</div>
-                <p className="text-blue-900">Click "Export as JPG" to download your component as an image</p>
+                <p className="text-blue-900">Click "Export as JPG" to download the rendered image</p>
               </div>
             </div>
           </div>
@@ -150,8 +216,8 @@ const App = () => {
               </button>
             </div>
             <div 
-              className="p-8 bg-white"
               ref={previewRef}
+              className="p-8 bg-white min-h-[200px] flex items-center justify-center"
             >
               {PreviewComponent && <PreviewComponent />}
             </div>
