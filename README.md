@@ -2,6 +2,8 @@
 
 A simple yet powerful tool to convert React components into JPG images. Perfect for creating infographics, presentations, or social media content.
 
+🌐 [Try it live](https://silas-h.github.io/react-to-jpg/)
+
 ## Features
 
 - 🎨 Live preview of React components
@@ -93,3 +95,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Thanks to all the open-source libraries that made this possible
 - Built with 💙 by [Silas-h](https://github.com/Silas-h)
+
+## Screenshots
+
+![React to JPG Interface](screenshot.png)
+*Add your screenshot here*
