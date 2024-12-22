@@ -1,20 +1,72 @@
 import React, { useState, useRef } from 'react';
 import { toPng } from 'html-to-image';
 import * as LucideIcons from 'lucide-react';
-import { Code, Eye, FileCode, ArrowRight } from 'lucide-react';
+import { Code, Eye } from 'lucide-react';
 import { createElement as e } from 'react';
+
+// Error boundary component to catch render errors
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <pre className="text-red-600 font-mono text-sm whitespace-pre-wrap">
+            Render Error: {this.state.error?.message || 'An unknown error occurred'}
+          </pre>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const createComponent = (code) => {
   try {
+    // Validate code is not empty
+    if (!code.trim()) {
+      throw new Error('Component code cannot be empty');
+    }
+
+    // Extract the component name from the code
+    const componentNameMatch = code.match(/const\s+([A-Za-z0-9_]+)\s*=/);
+    if (!componentNameMatch) {
+      throw new Error('Could not find component declaration. Make sure your code starts with "const ComponentName = "');
+    }
+    
+    // Add icon declarations at the start of the component code
+    const iconDeclarations = Object.entries(LucideIcons)
+      .map(([name, component]) => `const ${name} = LucideIcons.${name};`)
+      .join('\n');
+    
+    const fullCode = `
+      try {
+        ${iconDeclarations}
+        ${code}
+        return ${componentNameMatch[1]};
+      } catch (err) {
+        throw new Error('Component error: ' + (err.message || 'Unknown error'));
+      }
+    `;
+
     return Function(
       'React',
       'e',
-      ...Object.keys(LucideIcons),
-      `${code}; return ROEInfographic;`
-    )(React, React.createElement, ...Object.values(LucideIcons));
+      'LucideIcons',
+      fullCode
+    )(React, React.createElement, LucideIcons);
   } catch (err) {
     console.error('Component creation error:', err);
-    throw err;
+    throw new Error(`Failed to create component: ${err.message}`);
   }
 };
 
@@ -26,11 +78,24 @@ const App = () => {
 
   const handleCodeChange = (newCode) => {
     setCode(newCode);
+    if (!newCode.trim()) {
+      setPreviewComponent(null);
+      setError(null);
+      return;
+    }
+    
     try {
       const component = createComponent(newCode);
+      
+      // Validate that the component is actually a function
+      if (typeof component !== 'function') {
+        throw new Error('Component must be a function');
+      }
+      
       setPreviewComponent(() => component);
       setError(null);
     } catch (err) {
+      console.error('Component creation error:', err);
       setError(err.message);
       setPreviewComponent(null);
     }
@@ -46,7 +111,7 @@ const App = () => {
       });
       
       const link = document.createElement('a');
-      link.download = 'react-component.jpg';
+      link.download = 'infographic.jpg';
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -74,9 +139,9 @@ const App = () => {
                 <div>
                   <p className="text-blue-900">Paste your React component code in the editor below. Component must:</p>
                   <ul className="mt-2 list-disc list-inside text-blue-800 text-sm space-y-1 ml-4">
-                    <li>Have "Infographic" in its name (e.g., ROEInfographic)</li>
-                    <li>Use <code className="bg-blue-100 px-1 rounded">e()</code> instead of JSX (see example in editor)</li>
-                    <li>Be exported as default</li>
+                    <li>Start with a component declaration (e.g., const MyComponent = ...)</li>
+                    <li>Use <code className="bg-blue-100 px-1 rounded">e()</code> for createElement</li>
+                    <li>You can use any Lucide icon directly by name (e.g., DollarSign, Calculator)</li>
                   </ul>
                 </div>
               </div>
@@ -100,7 +165,7 @@ const App = () => {
               <div>
                 <h2 className="font-medium text-gray-900">Component Code</h2>
                 <p className="text-sm text-gray-500">
-                  Available globally: All Lucide icons and React.createElement (as 'e')
+                  All Lucide icons are available by name (e.g., DollarSign, Calculator)
                 </p>
               </div>
             </div>
@@ -112,14 +177,13 @@ const App = () => {
                 value={code}
                 onChange={(e) => handleCodeChange(e.target.value)}
                 spellCheck="false"
-                placeholder={`const MyInfographic = () => {
+                placeholder={`const MyComponent = () => {
   return e('div', { className: "p-8 text-center" },
     e('h1', { className: "text-2xl font-bold" }, "My Title"),
+    e(DollarSign, { size: 24, className: "mx-auto mt-4" }),
     e('p', { className: "mt-4" }, "My content here...")
   );
-};
-
-export default MyInfographic;`}
+};`}
               />
               {error && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -154,7 +218,9 @@ export default MyInfographic;`}
               className="p-8 bg-white"
               ref={previewRef}
             >
-              {PreviewComponent && <PreviewComponent />}
+              <ErrorBoundary>
+                {PreviewComponent && <PreviewComponent />}
+              </ErrorBoundary>
             </div>
           </div>
         </div>
