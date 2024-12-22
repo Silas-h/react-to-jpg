@@ -95,8 +95,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Thanks to all the open-source libraries that made this possible
 - Built with 💙 by [Silas-h](https://github.com/Silas-h)
-
-## Screenshots
-
-![React to JPG Interface](screenshot.png)
-*Add your screenshot here*
